@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Обработчик вебхуков GitHub - Версия с клонированием репозитория
+Обработчик вебхуков GitHub - Версия с обновлением кода
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -23,7 +23,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-def clone_repository():
+def update_code():
     """Клонирование или обновление репозитория"""
     try:
         if not os.path.exists(APP_DIR):
@@ -33,11 +33,25 @@ def clone_repository():
             ], check=True)
             logging.info("Репозиторий успешно склонирован")
         else:
-            logging.info("Репозиторий уже существует")
-        return True
+            logging.info("Обновление репозитория...")
+            os.chdir(APP_DIR)
+            subprocess.run(["git", "fetch", "origin"], check=True)
+            subprocess.run(["git", "reset", "--hard", f"origin/{BRANCH}"], check=True)
+            logging.info("Репозиторий успешно обновлен")
+        
+        # Получаем текущий коммит
+        os.chdir(APP_DIR)
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, check=True
+        )
+        commit_hash = result.stdout.strip()
+        logging.info(f"Текущий коммит: {commit_hash}")
+        
+        return True, commit_hash
     except Exception as e:
-        logging.error(f"Не удалось клонировать репозиторий: {e}")
-        return False
+        logging.error(f"Не удалось обновить код: {e}")
+        return False, None
 
 class WebhookHandler(BaseHTTPRequestHandler):
     
@@ -56,8 +70,8 @@ class WebhookHandler(BaseHTTPRequestHandler):
                 logging.info(f"Push в ветку: {branch}")
                 
                 if branch == BRANCH:
-                    # Запускаем клонирование в фоне
-                    thread = threading.Thread(target=clone_repository)
+                    # Запускаем обновление в фоне
+                    thread = threading.Thread(target=update_code)
                     thread.start()
                     
                     self.send_response(202)
@@ -65,11 +79,18 @@ class WebhookHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(json.dumps({
                         "status": "принято",
-                        "branch": branch
+                        "branch": branch,
+                        "message": "Обновление запущено"
                     }, ensure_ascii=False).encode())
                 else:
                     self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
                     self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "status": "игнорируется",
+                        "branch": branch,
+                        "message": f"Отслеживается только ветка {BRANCH}"
+                    }, ensure_ascii=False).encode())
             else:
                 self.send_response(200)
                 self.end_headers()
