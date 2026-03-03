@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Обработчик вебхуков GitHub - Версия с обновлением кода
+Обработчик вебхуков GitHub - Версия с установкой зависимостей
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -22,6 +22,22 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+def install_dependencies():
+    """Установка Python зависимостей"""
+    try:
+        requirements_file = os.path.join(APP_DIR, "requirements.txt")
+        if os.path.exists(requirements_file):
+            logging.info("Установка зависимостей...")
+            subprocess.run(["pip3", "install", "-r", requirements_file], check=True)
+            logging.info("Зависимости успешно установлены")
+            return True
+        else:
+            logging.info("Файл requirements.txt не найден")
+            return True
+    except Exception as e:
+        logging.error(f"Не удалось установить зависимости: {e}")
+        return False
 
 def update_code():
     """Клонирование или обновление репозитория"""
@@ -47,6 +63,9 @@ def update_code():
         )
         commit_hash = result.stdout.strip()
         logging.info(f"Текущий коммит: {commit_hash}")
+        
+        # Устанавливаем зависимости
+        install_dependencies()
         
         return True, commit_hash
     except Exception as e:
@@ -80,7 +99,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({
                         "status": "принято",
                         "branch": branch,
-                        "message": "Обновление запущено"
+                        "message": "Обновление с зависимостями запущено"
                     }, ensure_ascii=False).encode())
                 else:
                     self.send_response(200)
