@@ -63,7 +63,7 @@ def restart_app(commit_hash=None):
             logging.warning("⚠️ commit_hash не передан, файл не обновлен")
 
         # Ждем запуска
-        time.sleep(5)
+        time.sleep(10)
         
         # Проверяем, что приложение отвечает
         check = subprocess.run(
