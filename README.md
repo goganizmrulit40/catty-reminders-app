@@ -133,3 +133,4 @@ To read the API docs, open the following pages:
 # Тест
 # Rewrite path
 # Reload webhook
+# Test fixed webhook
