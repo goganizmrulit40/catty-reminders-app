@@ -132,3 +132,4 @@ To read the API docs, open the following pages:
 # Тестовый деплой
 # Тест
 # Rewrite path
+# Reload webhook
