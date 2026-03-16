@@ -41,7 +41,7 @@ async def get_login(
 
   context = {
     'request': request,
-    'deploy_ref': get_deploy_ref(),
+    'deploy_ref': DEPLOY_REF,
     'invalid': invalid,
     'logged_out': logged_out,
     'unauthorized': unauthorized
