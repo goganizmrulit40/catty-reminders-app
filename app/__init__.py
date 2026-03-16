@@ -22,21 +22,8 @@ with open('config.json') as config_json:
   db_path = config['db_path']
 
 # Получаем текущий коммит из git
-import subprocess
-try:
-    result = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"],
-        cwd="/opt/catty-reminders",
-        capture_output=True,
-        text=True,
-        timeout=2
-    )
-    if result.returncode == 0:
-        DEPLOY_REF = result.stdout.strip()
-    else:
-        DEPLOY_REF = "NA"
-except:
-    DEPLOY_REF = "NA"
+import datetime
+DEPLOY_REF = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 # --------------------------------------------------------------------------------
 # Establish the Secret Key
