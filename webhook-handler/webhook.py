@@ -197,7 +197,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
                 
                 logging.info(f"Push в {repo_name} ветка {branch} от {pusher}")
                 
-                if branch == BRANCH:
+                if branch.startswith("lab1"):
                     commits = payload.get('commits', [])
                     if commits:
                         last_commit = commits[-1]
