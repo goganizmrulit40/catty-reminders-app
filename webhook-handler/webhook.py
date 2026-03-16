@@ -13,8 +13,8 @@ import time
 
 # Конфигурация
 REPO_URL = "https://github.com/goganizmrulit40/catty-reminders-app.git"
-APP_DIR = "/opt/catty-reminders-app"
-LOG_FILE = "/var/log/webhook.log"
+APP_DIR = "/opt/catty-reminders"
+LOG_FILE = "/var/log/webhook/webhook.log"
 BRANCH = "lab1"
 
 # Настройка логирования
