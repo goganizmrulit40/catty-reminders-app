@@ -30,7 +30,7 @@ logging.basicConfig(
 def restart_app():
     """Перезапуск приложения"""
     try:
-        logging.info("Перезапуск приложения...")
+        logging.info("f Перезапуск приложения... restart_app вызван с commit_hash: {commit_hash}"")
         # Не используем check=True, проверяем сами
         result = subprocess.run(
             ["sudo", "-n", "systemctl", "restart", "catty-reminders"],
@@ -45,6 +45,21 @@ def restart_app():
             logging.error(f"Ошибка при выполнении restart: {result.stderr}")
             return False
         
+	if commit_hash:
+        	try:
+            		with open(DEPLOY_REF_FILE, 'w') as f:
+                		f.write(commit_hash)
+            		logging.info(f"✅ Deploy ref записан в файл: {commit_hash}")
+            
+            		# Проверим, что записалось
+            		with open(DEPLOY_REF_FILE, 'r') as f:
+                		content = f.read().strip()
+            		logging.info(f"✅ Проверка файла: '{content}'")
+        	except Exception as e:
+            		logging.error(f"❌ Не удалось записать deploy_ref: {e}")
+    	else:
+        	logging.warning("⚠️ commit_hash не передан, файл не обновлен")
+
         # Ждем запуска
         time.sleep(5)
         
@@ -147,14 +162,22 @@ def update_code():
             universal_newlines=True
         )
         
-        if result.returncode == 0:
-            commit_hash = result.stdout.strip()
-            logging.info(f"Текущий коммит: {commit_hash}")
-        else:
-            commit_hash = "unknown"
+	if result.returncode == 0:
+    		commit_hash = result.stdout.strip()
+    		logging.info(f"Текущий коммит: {commit_hash}")
+    
+    		# записываем хэш в файл
+    		try:
+        		with open('/opt/catty-reminders/deploy_ref.txt', 'w') as f:
+            			f.write(commit_hash)
+        		logging.info(f"Deploy ref записан в файл: {commit_hash}")
+    		except Exception as e:
+        		logging.error(f"Не удалось записать deploy_ref: {e}")
+	else:
+    		commit_hash = "unknown"
         
         install_dependencies()
-        restart_app()
+        restart_app(commit_hash)
         
         return True, commit_hash
     except Exception as e:
