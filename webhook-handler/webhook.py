@@ -16,7 +16,7 @@ REPO_URL = "https://github.com/goganizmrulit40/catty-reminders-app.git"
 APP_DIR = "/opt/catty-reminders"
 LOG_FILE = "/var/log/webhook/webhook.log"
 BRANCH = "lab1"
-DEPLOY_REF_FILE = "/opt/catty-reminders/deploy_ref.txt"  # ДОБАВЛЕНО!
+DEPLOY_REF_FILE = "/opt/catty-reminders/deploy_ref.txt"
 
 # Создаем папку для логов
 os.makedirs("/var/log/webhook", exist_ok=True)
@@ -115,13 +115,13 @@ def install_dependencies():
         logging.error(f"Не удалось установить зависимости: {e}")
         return False
 
-def update_code():
+def update_code(branch_name="lab1"):
     """Клонирование или обновление репозитория"""
     try:
         if not os.path.exists(APP_DIR):
             logging.info("Клонирование репозитория...")
             result = subprocess.run(
-                ["git", "clone", "-b", BRANCH, "--single-branch", REPO_URL, APP_DIR],
+                ["git", "clone", "-b", branch_name, "--single-branch", REPO_URL, APP_DIR],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True
@@ -131,7 +131,7 @@ def update_code():
                 return False, None
             logging.info("Репозиторий успешно склонирован")
         else:
-            logging.info("Обновление репозитория...")
+	    logging.info(f"Обновление репозитория для ветки {branch_name}...")
             os.chdir(APP_DIR)
             
             result = subprocess.run(
@@ -145,7 +145,7 @@ def update_code():
                 return False, None
             
             result = subprocess.run(
-                ["git", "reset", "--hard", f"origin/{BRANCH}"],
+                ["git", "reset", "--hard", f"origin/{branch_name}"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True
@@ -204,7 +204,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
                         commit_msg = last_commit.get('message', '')
                         logging.info(f"Сообщение коммита: {commit_msg}")
                     
-                    thread = threading.Thread(target=update_code)
+                    thread = threading.Thread(target=update_code, args=(branch,))
                     thread.start()
                     
                     self.send_response(202)
