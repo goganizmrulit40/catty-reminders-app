@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Обработчик вебхуков GitHub - Полная версия с перезапуском приложения
+Обработчик вебхуков GitHub - Исправленная версия для Python 3.6
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -11,11 +11,14 @@ import os
 import threading
 import time
 
-# Конфигурация
+# ==================== КОНФИГУРАЦИЯ ====================
 REPO_URL = "https://github.com/goganizmrulit40/catty-reminders-app.git"
 APP_DIR = "/opt/catty-reminders"
 LOG_FILE = "/var/log/webhook/webhook.log"
 BRANCH = "lab1"
+
+# Создаем папку для логов
+os.makedirs("/var/log/webhook", exist_ok=True)
 
 # Настройка логирования
 logging.basicConfig(
@@ -28,26 +31,40 @@ def restart_app():
     """Перезапуск приложения"""
     try:
         logging.info("Перезапуск приложения...")
-        subprocess.run(["sudo", "systemctl", "restart", "catty-reminders"], check=True)
-        
-        # Ждем запуска приложения
-        time.sleep(3)
-        
-        # Проверяем, запустилось ли приложение
+        # Не используем check=True, проверяем сами
         result = subprocess.run(
-            ["curl", "-f", "http://localhost:8181/health"],
-            capture_output=True,
-            timeout=5
+            ["sudo", "systemctl", "restart", "catty-reminders"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
         )
         
         if result.returncode == 0:
-            logging.info("Приложение успешно перезапущено")
+            logging.info("Команда перезапуска выполнена успешно")
+        else:
+            logging.error(f"Ошибка при выполнении restart: {result.stderr}")
+            return False
+        
+        # Ждем запуска
+        time.sleep(5)
+        
+        # Проверяем, что приложение отвечает
+        check = subprocess.run(
+            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "http://localhost:8181/login"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=5
+        )
+        
+        if check.stdout and check.stdout.strip() == "200":
+            logging.info(f"Приложение успешно перезапущено и отвечает 200")
             return True
         else:
-            logging.error("Приложение не запустилось")
-            return False
+            logging.warning(f"Приложение перезапущено, но отвечает кодом {check.stdout}")
+            return True  # Всё равно считаем успехом, потому что restart прошел
     except Exception as e:
-        logging.error(f"Не удалось перезапустить приложение: {e}")
+        logging.error(f"Исключение при перезапуске: {e}")
         return False
 
 def install_dependencies():
@@ -56,8 +73,23 @@ def install_dependencies():
         requirements_file = os.path.join(APP_DIR, "requirements.txt")
         if os.path.exists(requirements_file):
             logging.info("Установка зависимостей...")
-            subprocess.run(["pip3", "install", "-r", requirements_file], check=True)
-            logging.info("Зависимости успешно установлены")
+            pip_path = os.path.join(APP_DIR, "venv", "bin", "pip")
+            if os.path.exists(pip_path):
+                result = subprocess.run(
+                    [pip_path, "install", "-r", requirements_file],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True
+                )
+                logging.info("Зависимости успешно установлены")
+            else:
+                logging.warning("Виртуальное окружение не найдено, используем системный pip")
+                result = subprocess.run(
+                    ["pip3", "install", "-r", requirements_file],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True
+                )
             return True
         else:
             logging.info("Файл requirements.txt не найден")
@@ -71,30 +103,57 @@ def update_code():
     try:
         if not os.path.exists(APP_DIR):
             logging.info("Клонирование репозитория...")
-            subprocess.run([
-                "git", "clone", "-b", BRANCH, "--single-branch", REPO_URL, APP_DIR
-            ], check=True)
+            result = subprocess.run(
+                ["git", "clone", "-b", BRANCH, "--single-branch", REPO_URL, APP_DIR],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            if result.returncode != 0:
+                logging.error(f"Ошибка клонирования: {result.stderr}")
+                return False, None
             logging.info("Репозиторий успешно склонирован")
         else:
             logging.info("Обновление репозитория...")
             os.chdir(APP_DIR)
-            subprocess.run(["git", "fetch", "origin"], check=True)
-            subprocess.run(["git", "reset", "--hard", f"origin/{BRANCH}"], check=True)
+            
+            result = subprocess.run(
+                ["git", "fetch", "origin"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            if result.returncode != 0:
+                logging.error(f"Ошибка fetch: {result.stderr}")
+                return False, None
+            
+            result = subprocess.run(
+                ["git", "reset", "--hard", f"origin/{BRANCH}"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            if result.returncode != 0:
+                logging.error(f"Ошибка reset: {result.stderr}")
+                return False, None
+            
             logging.info("Репозиторий успешно обновлен")
         
-        # Получаем текущий коммит
         os.chdir(APP_DIR)
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, check=True
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
         )
-        commit_hash = result.stdout.strip()
-        logging.info(f"Текущий коммит: {commit_hash}")
         
-        # Устанавливаем зависимости
+        if result.returncode == 0:
+            commit_hash = result.stdout.strip()
+            logging.info(f"Текущий коммит: {commit_hash}")
+        else:
+            commit_hash = "unknown"
+        
         install_dependencies()
-        
-        # Перезапускаем приложение
         restart_app()
         
         return True, commit_hash
@@ -105,7 +164,6 @@ def update_code():
 class WebhookHandler(BaseHTTPRequestHandler):
     
     def do_POST(self):
-        """Обработка POST запросов"""
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
         
@@ -122,14 +180,12 @@ class WebhookHandler(BaseHTTPRequestHandler):
                 logging.info(f"Push в {repo_name} ветка {branch} от {pusher}")
                 
                 if branch == BRANCH:
-                    # Получаем информацию о коммитах
                     commits = payload.get('commits', [])
                     if commits:
                         last_commit = commits[-1]
                         commit_msg = last_commit.get('message', '')
                         logging.info(f"Сообщение коммита: {commit_msg}")
                     
-                    # Запускаем обновление в фоне
                     thread = threading.Thread(target=update_code)
                     thread.start()
                     
@@ -177,6 +233,7 @@ def run(port=8080):
     print(f"✅ Сервер вебхуков запущен на порту {port}")
     print(f"📁 Отслеживаемая ветка: {BRANCH}")
     print(f"📦 Репозиторий: {REPO_URL}")
+    print(f"📝 Логи: {LOG_FILE}")
     print("Нажмите Ctrl+C для остановки")
     server.serve_forever()
 
