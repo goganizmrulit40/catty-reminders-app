@@ -1,8 +1,0 @@
-● catty-reminders.service - Catty Reminders App
-   Loaded: loaded (/etc/systemd/system/catty-reminders.service; enabled; vendor preset: enabled)
-   Active: activating (auto-restart) (Result: exit-code) since Вт 2026-04-14 15:39:07 PDT; 9s ago
-  Process: 9116 ExecStart=/opt/catty-reminders/venv/bin/python3.9 -m uvicorn app.main:app --host 0.0.0.0 --port 8181 [0;1;31m(code=exited, status=1/FAILURE)[0m
- Main PID: 9116 (code=exited, status=1/FAILURE)
-
-апр 14 15:39:07 ubuntu systemd[1]: [0;1;39mcatty-reminders.service: Unit entered failed state.[0m
-апр 14 15:39:07 ubuntu systemd[1]: [0;1;39mcatty-reminders.service: Failed with result 'exit-code'.[0m
