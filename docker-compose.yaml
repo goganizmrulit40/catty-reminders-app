@@ -20,8 +20,6 @@ services:
     image: "${APP_IMAGE:-catty-app:latest}"
     container_name: catty-app
     restart: unless-stopped
-    environment:
-      DEPLOY_REF: "${DEPLOY_REF:-unknown}"
     expose:
       - "8181"
     ports:
